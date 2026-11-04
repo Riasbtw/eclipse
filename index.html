@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>E.C.L.I.P.S.E. // Recovery Desktop</title>
+<style>
+:root{--cyan:#8be9ff;--dim:#5892a6;--panel:rgba(8,16,22,.94);--line:rgba(139,233,253,.24);--alert:#ff6b6b}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;overflow:hidden;background:#070d12;color:#d8eaf5;font:14px "Consolas","Courier New",monospace}
+.wallpaper{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 45%,#172a38 0%,#0a141d 45%,#03070b 100%)}
+.wallpaper:before{content:"";position:absolute;inset:0;opacity:.16;background-image:linear-gradient(rgba(139,233,253,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(139,233,253,.12) 1px,transparent 1px);background-size:42px 42px}
+.scan{position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.13) 4px);opacity:.45}
+.desktop{position:relative;z-index:1;height:calc(100vh - 38px);padding:28px}
+.desktop-label{position:absolute;right:30px;top:24px;text-align:right;color:#6c8f9c;font-size:11px;letter-spacing:2px;line-height:1.7}
+.icon{width:100px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 6px;border:1px solid transparent;border-radius:5px;cursor:pointer;color:#e2f1f5;text-align:center;user-select:none}
+.icon:hover,.icon:focus{background:rgba(139,233,253,.1);border-color:var(--line);outline:none}
+.drive{font-size:38px;filter:drop-shadow(0 0 9px rgba(139,233,253,.35))}
+.icon small{font-size:11px;color:#a6b9c9;line-height:1.35}
+.taskbar{position:fixed;z-index:5;bottom:0;left:0;right:0;height:38px;background:rgba(3,7,11,.95);border-top:1px solid var(--line);display:flex;align-items:center;padding:0 14px;gap:14px;color:#91abb9;font-size:11px}
+.status{margin-left:auto;letter-spacing:1px}
+.window{display:none;position:absolute;z-index:3;left:50%;top:50%;transform:translate(-50%,-50%);width:min(760px,calc(100vw - 28px));max-height:calc(100vh - 90px);background:var(--panel);border:1px solid rgba(139,233,253,.48);box-shadow:0 18px 70px #000b,0 0 28px rgba(139,233,253,.08);backdrop-filter:blur(10px)}
+.window.open{display:flex;flex-direction:column}
+.titlebar{height:38px;flex:0 0 38px;background:rgba(24,44,56,.9);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 12px;color:var(--cyan);letter-spacing:1px;font-size:12px}
+.close{margin-left:auto;border:0;background:transparent;color:#c8dbe5;font:inherit;font-size:18px;cursor:pointer;padding:2px 7px}
+.toolbar{padding:10px 14px;border-bottom:1px solid var(--line);color:#8eb1b9;font-size:11px;display:flex;gap:10px;flex-wrap:wrap}
+.content{padding:18px;overflow:auto;min-height:150px}
+.filelist{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.file{border:1px solid transparent;padding:15px 10px;border-radius:4px;cursor:pointer;display:flex;align-items:center;gap:10px;min-width:0}
+.file:hover{background:rgba(139,233,253,.08);border-color:var(--line)}
+.file .fileicon{font-size:27px}
+.file span:last-child{min-width:0;overflow-wrap:anywhere}
+.file small{display:block;color:#839aa9;margin-top:4px;font-size:10px}
+.doc{max-width:100%;overflow-wrap:anywhere;word-break:normal;white-space:normal;line-height:1.65;font-size:13px}
+.doc h2{color:var(--cyan);font-size:17px;letter-spacing:1px;margin:0 0 5px}
+.meta{color:#829aa8;font-size:11px;margin-bottom:18px;line-height:1.7}
+.entry{padding:10px 12px;margin:8px 0;border-left:2px solid #425b6d;background:rgba(139,233,253,.035);overflow-wrap:anywhere}
+.entry b{color:#a7f0ff}
+.entry .who{color:#e0f2f5}
+.corrupt{color:#9de8ff;margin-top:20px;border-top:1px dashed var(--line);padding-top:12px}
+.hint{color:#778d9d;font-size:11px;margin-top:14px}
+
+/* Passwort-Dialog Styles */
+.auth-box{display:flex;flex-direction:column;gap:12px;max-width:320px;margin:20px auto;text-align:center}
+.auth-box input{background:#04080a;border:1px solid var(--line);color:var(--cyan);padding:10px;font:inherit;text-align:center;outline:none}
+.auth-box input:focus{border-color:var(--cyan)}
+.auth-box button{background:rgba(24,44,56,.9);border:1px solid var(--line);color:var(--cyan);padding:8px 16px;font:inherit;cursor:pointer}
+.auth-box button:hover{background:rgba(139,233,253,.2)}
+.error-msg{color:var(--alert);font-size:11px;display:none;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="wallpaper"></div><div class="scan"></div>
+<main class="desktop">
+  <div class="icon" tabindex="0" role="button" aria-label="USB-Laufwerk öffnen" onclick="openExplorer()" onkeydown="if(event.key==='Enter'||event.key===' '){openExplorer()}">
+    <div class="drive">▣</div><div>USB_RECOVERY</div><small>Wechseldatenträger<br>F:\</small>
+  </div>
+  <div class="desktop-label">E.C.L.I.P.S.E. TERMINAL<br>BUNKER C1<br>LOCAL SESSION: ACTIVE</div>
+</main>
+<div class="taskbar"><span>◈ E.C.L.I.P.S.E.</span><span>RECOVERY DESKTOP</span><span class="status">SYSTEM STATUS: UNSTABLE&nbsp;&nbsp; | &nbsp;&nbsp;03.11.2126</span></div>
+
+<!-- EXPLORER (HAUPTVERZEICHNIS) -->
+<section class="window" id="explorer" aria-label="USB-Datei-Explorer">
+  <header class="titlebar"><span>▣ &nbsp; FILE EXPLORER — USB_RECOVERY (F:)</span><button class="close" onclick="closeWindow('explorer')" aria-label="Schließen">×</button></header>
+  <div class="toolbar"><span>Dieser PC</span><span>›</span><span>USB_RECOVERY (F:)</span><span style="margin-left:auto">5 ELEMENTE</span></div>
+  <div class="content">
+    <div class="filelist">
+      <div class="file" role="button" tabindex="0" onclick="openFolder()" onkeydown="if(event.key==='Enter'){openFolder()}">
+        <span class="fileicon">📁</span><span>ECLIPSE_RECOVERY<small>Dateiordner · 1 Element</small></span>
+      </div>
+      <div class="file" role="button" tabindex="0" onclick="promptPassword('Stromversorgung & Notstrom', 'folder_power')" onkeydown="if(event.key==='Enter'){promptPassword('Stromversorgung & Notstrom', 'folder_power')}">
+        <span class="fileicon">🔒</span><span>STROMVERSORGUNG<small>Geschützt · 2 Elemente</small></span>
+      </div>
+      <div class="file" role="button" tabindex="0" onclick="promptPassword('Liste Bewohner', 'folder_residents')" onkeydown="if(event.key==='Enter'){promptPassword('Liste Bewohner', 'folder_residents')}">
+        <span class="fileicon">🔒</span><span>LISTE_BEWOHNER<small>Geschützt · 1 Element</small></span>
+      </div>
+      <div class="file" role="button" tabindex="0" onclick="promptPassword('Vorräte & Rationen', 'folder_supplies')" onkeydown="if(event.key==='Enter'){promptPassword('Vorräte & Rationen', 'folder_supplies')}">
+        <span class="fileicon">🔒</span><span>VORRAETE_RATIONEN<small>Geschützt · 1 Element</small></span>
+      </div>
+      <div class="file" role="button" tabindex="0" onclick="promptPassword('Sicherheit & Verteidigung', 'folder_security')" onkeydown="if(event.key==='Enter'){promptPassword('Sicherheit & Verteidigung', 'folder_security')}">
+        <span class="fileicon">🔒</span><span>SICHERHEIT_BUNKER<small>Geschützt · 1 Element</small></span>
+      </div>
+    </div>
+    <p class="hint">Doppelklick zum Öffnen eines Ordners. Geschützte Ordner erfordern Passwort-Authentifizierung.</p>
+  </div>
+</section>
+
+<!-- PASSWORT-ABFRAGE DIALOG -->
+<section class="window" id="auth_dialog" aria-label="Passwort-Authentifizierung">
+  <header class="titlebar"><span id="auth_title">🔒 &nbsp; AUTHENTIFIZIERUNG ERFORDERLICH</span><button class="close" onclick="closeWindow('auth_dialog')" aria-label="Schließen">×</button></header>
+  <div class="content">
+    <div class="auth-box">
+      <label id="auth_label" for="pwd_input">ZUGRIFFSCODE EINGEBEN:</label>
+      <input type="password" id="pwd_input" placeholder="PASSWORT" onkeydown="if(event.key==='Enter'){verifyPassword()}">
+      <button onclick="verifyPassword()">ENTSCHLÜSSELN</button>
+      <div class="error-msg" id="auth_error">ZUGRIFF VERWEIGERT: FALSCHER CODE</div>
+    </div>
+  </div>
+</section>
+
+<!-- ORDNER: ECLIPSE_RECOVERY -->
+<section class="window" id="folder" aria-label="Recovery-Ordner">
+  <header class="titlebar"><span>📁 &nbsp; ECLIPSE_RECOVERY</span><button class="close" onclick="closeWindow('folder')" aria-label="Schließen">×</button></header>
+  <div class="toolbar"><span>USB_RECOVERY (F:)</span><span>›</span><span>ECLIPSE_RECOVERY</span><span style="margin-left:auto">1 ELEMENT</span></div>
+  <div class="content">
+    <div class="filelist">
+      <div class="file" role="button" tabindex="0" onclick="openLog()" onkeydown="if(event.key==='Enter'){openLog()}">
+        <span class="fileicon">📄</span><span>COMMUNICATION_LOG_014.txt<small>Textdatei · 3 KB</small></span>
+      </div>
+    </div>
+    <p class="hint">Doppelklick zum Anzeigen der wiederhergestellten Datei.</p>
+  </div>
+</section>
+
+<!-- ORDNER: STROMVERSORGUNG (GESCHÜTZT) -->
+<section class="window" id="folder_power" aria-label="Stromversorgung">
+  <header class="titlebar"><span>🔓 &nbsp; STROMVERSORGUNG & NOTSTROM</span><button class="close" onclick="closeWindow('folder_power')" aria-label="Schließen">×</button></header>
+  <div class="toolbar"><span>USB_RECOVERY (F:)</span><span>›</span><span>STROMVERSORGUNG</span><span style="margin-left:auto">2 ELEMENTE</span></div>
+  <div class="content">
+    <article class="doc">
+      <h2>DIESEL-GENERATOREN & GEOTHERMIE</h2>
+      <div class="meta">STATUS: KRITISCH<br>TREIBSTOFFSTAND: 42% (REICHT FÜR CA. 18 TAGE)<br>GEOTHERMIE-PUMPE 2: DEFEKT</div>
+      <div class="entry"><b>[SYSTEM-MELDUNG]:</b> Notstromaggregate laufen auf 60% Kapazität. Lüftung in Sektor C gedrosselt.</div>
+    </article>
+  </div>
+</section>
+
+<!-- ORDNER: BEWOHNERLISTE (GESCHÜTZT) -->
+<section class="window" id="folder_residents" aria-label="Bewohnerliste">
+  <header class="titlebar"><span>🔓 &nbsp; BEWOHNERLISTE & BETTENBELEGUNG</span><button class="close" onclick="closeWindow('folder_residents')" aria-label="Schließen">×</button></header>
+  <div class="toolbar"><span>USB_RECOVERY (F:)</span><span>›</span><span>LISTE_BEWOHNER</span><span style="margin-left:auto">1 ELEMENT</span></div>
+  <div class="content">
+    <article class="doc">
+      <h2>BUNKER-REPERTOIRE // AKTIVE BEWOHNER</h2>
+      <div class="meta">GESAMTBEWOHNER: 48 PERSONEN<br>KAPAZITÄT: 60 PERSONEN MAX.</div>
+      <div class="entry"><b>SEKTOR A (FÜHRUNG & MEDIZIN):</b> Levian, Solaris, Dr. Vance, 8 weitere.</div>
+      <div class="entry"><b>SEKTOR B (SICHERHEIT):</b> Kampftruppe 1 (12 P.), Kampftruppe 2 (10 P.), Kampftruppe 3 (8 P.).</div>
+      <div class="entry"><b>SEKTOR C (TECHNIK & ZIVIL):</b> 15 Personen.</div>
+    </article>
+  </div>
+</section>
+
+<!-- ORDNER: VORRÄTE (GESCHÜTZT) -->
+<section class="window" id="folder_supplies" aria-label="Vorräte & Rationen">
+  <header class="titlebar"><span>🔓 &nbsp; VORRÄTE & RATIONEN</span><button class="close" onclick="closeWindow('folder_supplies')" aria-label="Schließen">×</button></header>
+  <div class="toolbar"><span>USB_RECOVERY (F:)</span><span>›</span><span>VORRAETE_RATIONEN</span><span style="margin-left:auto">1 ELEMENT</span></div>
+  <div class="content">
+    <article class="doc">
+      <h2>INVENTARLISTE REVENTON B</h2>
+      <div class="meta">TRINKWASSER: 12.000 LITER<br>NORT-RATIONEN: 1.200 PACKUNGEN (30 TAGE VOLLVERSORGUNG)</div>
+      <div class="entry"><b>HINWEIS:</b> Rationskürzung um 15% ab dem 10.11.2126 vorgesehen.</div>
+    </article>
+  </div>
+</section>
+
+<!-- ORDNER: SICHERHEIT (GESCHÜTZT) -->
+<section class="window" id="folder_security" aria-label="Sicherheit & Verteidigung">
+  <header class="titlebar"><span>🔓 &nbsp; SICHERHEIT & VERTEIDIGUNGSPROTOKOLE</span><button class="close" onclick="closeWindow('folder_security')" aria-label="Schließen">×</button></header>
+  <div class="toolbar"><span>USB_RECOVERY (F:)</span><span>›</span><span>SICHERHEIT_BUNKER</span><span style="margin-left:auto">1 ELEMENT</span></div>
+  <div class="content">
+    <article class="doc">
+      <h2>DEFCON-STATUS & BUNKERSCHLEUSEN</h2>
+      <div class="meta">DEFCON STATUS: 2<br>HAUPTSCHLEUSE: VERRIEGELT</div>
+      <div class="entry"><b>PROTOKOLL:</b> Im Falle eines Angriffs treten die Automatik-Schotts an Ebene 1 sofort in Kraft. Notfallschlüssel befindet sich in Sektor A.</div>
+    </article>
+  </div>
+</section>
+
+<!-- LOG-DATEI -->
+<section class="window" id="log" aria-label="Kommunikationsprotokoll">
+  <header class="titlebar"><span>▤ &nbsp; COMMUNICATION_LOG_014.txt — NOTEPAD</span><button class="close" onclick="closeWindow('log')" aria-label="Schließen">×</button></header>
+  <div class="toolbar"><span>DATEI</span><span>BEARBEITEN</span><span>ANSICHT</span><span style="margin-left:auto">READ ONLY</span></div>
+  <div class="content">
+    <article class="doc">
+      <h2>COMMUNICATION_LOG_014.txt</h2>
+      <div class="meta">QUELLE: RECOVERED_USB_014<br>KATEGORIE: INTERNE KOMMUNIKATION<br>STATUS: TEILWEISE WIEDERHERGESTELLT<br>BETEILIGTE: LEVIAN / UNKNOWN<br>DATUM: 03.11.2126</div>
+      <div class="entry"><b>[18:42:08] UNKNOWN:</b><br>Ist die Sache für morgen geklärt?</div>
+      <div class="entry"><b>[18:43:21] <span class="who">LEVIAN:</span></b><br>Das Treffen findet wie geplant statt. Ich werde persönlich erscheinen.</div>
+      <div class="entry"><b>[18:43:57] UNKNOWN:</b><br>Und die Sicherung eures Bunkers?</div>
+      <div class="entry"><b>[18:45:12] <span class="who">LEVIAN:</span></b><br>Die wird keine Rolle spielen. Ich sorge dafür, dass sich die Aufmerksamkeit auf das Treffen konzentriert.</div>
+      <div class="entry"><b>[18:45:48] UNKNOWN:</b><br>Du weißt, dass wir uns nicht leisten können, dass jemand dazwischenkommt.</div>
+      <div class="entry"><b>[18:46:33] <span class="who">LEVIAN:</span></b><br>Zwei Kampftruppen werden beim Treffen sein. Die dritte sollte den Bunker sichern. Ich werde argumentieren, dass niemand das wichtige Gespräch verpassen sollte.</div>
+      <div class="entry"><b>[18:47:02] UNKNOWN:</b><br>Und wenn deine Leute trotzdem zurückbleiben wollen?</div>
+      <div class="entry"><b>[18:48:19] <span class="who">LEVIAN:</span></b><br>Dann werde ich mich darum kümmern. Ich bin schließlich derjenige, dessen Anweisungen sie folgen.</div>
+      <div class="entry"><b>[18:49:44] UNKNOWN:</b><br>Wir verlassen uns darauf, Levian. Die Sache muss morgen funktionieren.</div>
+      <div class="entry"><b>[18:50:11] <span class="who">LEVIAN:</span></b><br>Wenn ihr euren Teil erledigt, wird niemand auf die Idee kommen, dass ich etwas damit zu tun hatte.</div>
+      <div class="entry"><b>[18:51:36] UNKNOWN:</b><br>Und Solaris?</div>
+      <div class="entry"><b>[18:52:04] <span class="who">LEVIAN:</span></b><br>Solaris wird glauben, dass wir angegriffen wurden. Genau das ist der entscheidende Punkt.</div>
+      <div class="entry"><b>[18:53:27] UNKNOWN:</b><br>Dann bleibt es bei unserer Vereinbarung.</div>
+      <div class="entry"><b>[18:54:09] <span class="who">LEVIAN:</span></b><br>Nach morgen ist ohnehin einiges anders.</div>
+      <div class="corrupt">[E.C.L.I.P.S.E.]<br>Verbindung unerwartet beendet.<br><br>[E.C.L.I.P.S.E.]<br>Datei teilweise beschädigt. Weitere Nachrichten konnten nicht wiederhergestellt werden.</div>
+    </article>
+  </div>
+</section>
+
+<script>
+let targetFolderId = '';
+
+function show(id){
+  document.querySelectorAll('.window').forEach(w=>w.classList.remove('open'));
+  document.getElementById(id).classList.add('open');
+}
+
+function openExplorer(){ show('explorer'); }
+function openFolder(){ show('folder'); }
+function openLog(){ show('log'); }
+function closeWindow(id){ document.getElementById(id).classList.remove('open'); }
+
+function promptPassword(folderName, folderId){
+  targetFolderId = folderId;
+  document.getElementById('auth_title').innerHTML = `🔒 &nbsp; AUTHENTIFIZIERUNG: ${folderName.toUpperCase()}`;
+  document.getElementById('auth_error').style.display = 'none';
+  document.getElementById('pwd_input').value = '';
+  show('auth_dialog');
+  setTimeout(() => document.getElementById('pwd_input').focus(), 50);
+}
+
+function verifyPassword(){
+  const pwd = document.getElementById('pwd_input').value;
+  if(pwd === 'FALKEN'){
+    show(targetFolderId);
+  } else {
+    document.getElementById('auth_error').style.display = 'block';
+  }
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') document.querySelectorAll('.window').forEach(w=>w.classList.remove('open'));
+});
+</script>
+</body>
+</html>
